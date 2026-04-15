@@ -1,14 +1,22 @@
-package main
+package cache
+
+import "time"
 
 // lruNode is a node in a doubly linked list.
 type lruNode struct {
-	key   string
-	value any
-	prev  *lruNode
-	next  *lruNode
+	key       string
+	value     any
+	expiresAt time.Time // zero value means no expiry
+	prev      *lruNode
+	next      *lruNode
 }
 
-// lruList is a doubly linked list that acts as an LRU list.
+// isExpired reports whether the node has a TTL that has passed.
+func (n *lruNode) isExpired() bool {
+	return !n.expiresAt.IsZero() && time.Now().After(n.expiresAt)
+}
+
+// lruList is a doubly linked list used as an LRU queue.
 // The front (head.next) is the most recently used entry.
 // The back (tail.prev) is the least recently used entry.
 type lruList struct {
@@ -43,8 +51,8 @@ func (l *lruList) get(key string) *lruNode {
 }
 
 // pushFront adds a new node at the front (MRU position).
-func (l *lruList) pushFront(key string, value any) *lruNode {
-	node := &lruNode{key: key, value: value}
+func (l *lruList) pushFront(key string, value any, expiresAt time.Time) *lruNode {
+	node := &lruNode{key: key, value: value, expiresAt: expiresAt}
 	l.insertFront(node)
 	l.items[key] = node
 	l.size++
